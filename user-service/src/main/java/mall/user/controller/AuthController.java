@@ -1,0 +1,49 @@
+package mall.user.controller;
+
+import mall.user.dto.*;
+import mall.user.service.AuthService;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+	private final AuthService authService;
+
+	public AuthController(AuthService authService) {
+		this.authService = authService;
+	}
+
+	@PostMapping("/register")
+	public RegisterResponseDto register(@RequestBody RegisterRequestDto request) {
+		return authService.register(request);
+	}
+
+	@PostMapping("/login")
+	public LoginResponseDto login(@RequestBody LoginRequestDto request) {
+		return authService.login(request);
+	}
+
+	@PostMapping("/refresh")
+	public RefreshResponseDto refresh(@RequestHeader("Authorization") String authHeader) {
+		String accessToken = authHeader.substring(7);
+		return authService.refresh(accessToken);
+	}
+
+	@PostMapping("/logout")
+	public LogoutResponseDto logout(@RequestHeader("Authorization") String authHeader) {
+		String accessToken = authHeader.substring(7);
+		return authService.logout(accessToken);
+	}
+
+	@GetMapping("/health")
+	public String status() {
+		return "User Service is working properly!";
+	}
+
+	@GetMapping("/welcome")
+	public String welcome() {
+		return "Welcome to the User Service!";
+	}
+
+}
