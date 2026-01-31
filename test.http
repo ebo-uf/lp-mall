@@ -1,0 +1,37 @@
+@server = http://localhost:8000
+@json = application/json
+@accessToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoNHZydXQ0IiwidWlkIjoiNDg5M2MyMGMtMGNkYS00NmNmLThjNmUtMjQ5NTU2MGRhNGM1IiwidHlwZSI6IkFDQ0VTUyIsImlhdCI6MTc2OTg4NjkxMSwiZXhwIjoxNzY5ODg3ODExfQ.DMtArwzUweMpQqTbMS9BgtA5XJq7PS2VlBXOeT66iEE
+@refreshToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjIiLCJ1aWQiOjYsInR5cGUiOiJSRUZSRVNIIiwiaWF0IjoxNzY4MjMyNzI1LCJleHAiOjE3Njk0NDIzMjV9.rTokMpr0y0WbdbJ2K4TKJl89Gemmy6ECYh8b8vbUn58
+
+GET {{server}}/product-service/health
+Authorization: Bearer {{accessToken}}
+########################################
+### 1️⃣ 회원가입 (permitAll)
+########################################
+POST {{server}}/auth/register
+Content-Type: {{json}}
+
+{
+  "username": "h4vrut4",
+  "password": "H$VRUT$",
+  "name": "aa",
+  "email": "abc@naver.com"
+}
+
+########################################
+### 2️⃣ 로그인 (permitAll)
+### → accessToken 반환
+########################################
+POST {{server}}/auth/login
+Content-Type: {{json}}
+
+{
+  "username": "h4vrut4",
+  "password": "H$VRUT$"
+}
+
+########################################
+### 2️⃣ 로그아웃
+########################################
+POST {{server}}/auth/logout
+Authorization: Bearer {{accessToken}}
