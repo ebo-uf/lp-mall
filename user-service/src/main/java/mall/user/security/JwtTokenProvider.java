@@ -35,8 +35,8 @@ public class JwtTokenProvider {
 	// token 생성 - 보안을 위해서 token 생성부 private으로
 	private String createToken(User user, SessionTokenConfig type) {
 		return Jwts.builder()
-			.setSubject(user.getUsername()) // 해당 부분에 대해서는 논의 필요 -> 어떤 값들이 들어가는지
-			.claim("uid", user.getUserId())
+			.setSubject(user.getUsername())
+			.claim("userId", user.getUserId())
 			.claim("type", type.name())
 			.setIssuedAt(new Date())
 			.setExpiration(new Date(System.currentTimeMillis() + type.getExpireMillis()))

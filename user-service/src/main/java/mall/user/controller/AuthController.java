@@ -41,9 +41,4 @@ public class AuthController {
 		return "User Service is working properly!";
 	}
 
-	@GetMapping("/welcome")
-	public String welcome() {
-		return "Welcome to the User Service!";
-	}
-
 }
