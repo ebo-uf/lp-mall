@@ -1,2 +1,8 @@
 jwt:
   secret: "THIS_IS_VERY_LONG_SECRET_KEY_AT_LEAST_32_BYTES_LONG"
+
+spring:
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
