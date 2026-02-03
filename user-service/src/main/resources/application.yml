@@ -5,15 +5,18 @@ spring:
   application:
     name: user-service
   datasource:
-    url: jdbc:mysql://localhost:3307/mall_db
+    url: jdbc:mysql://localhost:3307/user_db
     username: root
-    password: password123
+    password: password
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   data:
     redis:
       host: localhost
       port: 6380
+
+  profiles:
+    include: common
 
 eureka:
   client:

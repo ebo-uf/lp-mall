@@ -1,11 +1,31 @@
 @server = http://localhost:8000
 @json = application/json
-@accessToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoNHZydXQ0IiwidWlkIjoiNDg5M2MyMGMtMGNkYS00NmNmLThjNmUtMjQ5NTU2MGRhNGM1IiwidHlwZSI6IkFDQ0VTUyIsImlhdCI6MTc2OTg4NjkxMSwiZXhwIjoxNzY5ODg3ODExfQ.DMtArwzUweMpQqTbMS9BgtA5XJq7PS2VlBXOeT66iEE
+@accessToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoNHZydXQ0IiwidXNlcklkIjoiMzQ2MDBlNjAtOTRmNC00ZDM4LWIwNWQtNGQ5M2JiM2ZkMDE3IiwidHlwZSI6IkFDQ0VTUyIsImlhdCI6MTc3MDAxMTE4OSwiZXhwIjoxNzcwMDEyMDg5fQ.G2KnjebcFV46w3ip03Oe4E2Zwv0QjoIwc3F6dEqm_3E
 @refreshToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjIiLCJ1aWQiOjYsInR5cGUiOiJSRUZSRVNIIiwiaWF0IjoxNzY4MjMyNzI1LCJleHAiOjE3Njk0NDIzMjV9.rTokMpr0y0WbdbJ2K4TKJl89Gemmy6ECYh8b8vbUn58
 
-GET {{server}}/product-service/health
+GET {{server}}/products/all
 Authorization: Bearer {{accessToken}}
 ########################################
+GET {{server}}/products/health
+Authorization: Bearer {{accessToken}}
+########################################
+POST {{server}}/products/create
+Authorization: Bearer {{accessToken}}
+Content-Type: {{json}}
+
+{
+    "name": "The Wall",
+    "artistName": "Pink Floyd",
+    "year": 1979,
+    "condition": "MINT",
+    "price": 65000,
+    "stock": 5,
+    "isLimited": true,
+    "saleStartAt": "2026-02-10T10:00:00"
+}
+########################################
+GET {{server}}/users/me
+Authorization: Bearer {{accessToken}}
 ### 1️⃣ 회원가입 (permitAll)
 ########################################
 POST {{server}}/auth/register
