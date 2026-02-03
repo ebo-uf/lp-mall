@@ -1,8 +1,24 @@
 @server = http://localhost:8000
 @json = application/json
-@accessToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoNHZydXQ0IiwidXNlcklkIjoiMzQ2MDBlNjAtOTRmNC00ZDM4LWIwNWQtNGQ5M2JiM2ZkMDE3IiwidHlwZSI6IkFDQ0VTUyIsImlhdCI6MTc3MDAxMTE4OSwiZXhwIjoxNzcwMDEyMDg5fQ.G2KnjebcFV46w3ip03Oe4E2Zwv0QjoIwc3F6dEqm_3E
+@accessToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoNHZydXQ0IiwidXNlcklkIjoiZDgzNjU4ODgtMjEyYi00OWJhLWJiYmYtNDVhMDg0ODBjYmUzIiwidHlwZSI6IkFDQ0VTUyIsImlhdCI6MTc3MDE1NTMxNSwiZXhwIjoxNzcwMTU2MjE1fQ.0VI_6ksqqgh7-8dJGQSzuIyC5tFddlBozzpJHsxjOpk
 @refreshToken = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlcjIiLCJ1aWQiOjYsInR5cGUiOiJSRUZSRVNIIiwiaWF0IjoxNzY4MjMyNzI1LCJleHAiOjE3Njk0NDIzMjV9.rTokMpr0y0WbdbJ2K4TKJl89Gemmy6ECYh8b8vbUn58
 
+
+POST {{server}}/orders/create
+Authorization: Bearer {{accessToken}}
+Content-Type: {{json}}
+
+{
+    "productId": 6,
+    "quantity": 5
+}
+########################################
+GET {{server}}/orders/health
+Authorization: Bearer {{accessToken}}
+########################################
+GET {{server}}/products/6
+Authorization: Bearer {{accessToken}}
+#######################################
 GET {{server}}/products/all
 Authorization: Bearer {{accessToken}}
 ########################################
@@ -24,9 +40,11 @@ Content-Type: {{json}}
     "saleStartAt": "2026-02-10T10:00:00"
 }
 ########################################
+GET {{server}}/users/health
+Authorization: Bearer {{accessToken}}
+########################################
 GET {{server}}/users/me
 Authorization: Bearer {{accessToken}}
-### 1️⃣ 회원가입 (permitAll)
 ########################################
 POST {{server}}/auth/register
 Content-Type: {{json}}
@@ -37,10 +55,6 @@ Content-Type: {{json}}
   "name": "aa",
   "email": "abc@naver.com"
 }
-
-########################################
-### 2️⃣ 로그인 (permitAll)
-### → accessToken 반환
 ########################################
 POST {{server}}/auth/login
 Content-Type: {{json}}
@@ -49,9 +63,6 @@ Content-Type: {{json}}
   "username": "h4vrut4",
   "password": "H$VRUT$"
 }
-
-########################################
-### 2️⃣ 로그아웃
 ########################################
 POST {{server}}/auth/logout
 Authorization: Bearer {{accessToken}}

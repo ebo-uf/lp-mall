@@ -56,4 +56,10 @@ public class Product {
     @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    public void removeStock(Integer quantity) {
+        int restStock = this.stock - quantity;
+        if(restStock < 0) throw new RuntimeException("상품의 재고가 부족합니다. (현재 재고: " + this.stock + ")");
+        this.stock = restStock;
+    }
 }

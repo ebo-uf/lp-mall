@@ -1,15 +1,18 @@
 package mall.product.service;
 
 import lombok.RequiredArgsConstructor;
+import mall.common.dto.ProductResponseDto;
 import mall.product.dto.ProductCreateRequestDto;
 import mall.product.dto.ProductFindResponseDto;
 import mall.product.entity.Product;
 import mall.product.repository.ProductRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class ProductService {
 
@@ -48,5 +51,29 @@ public class ProductService {
                 .build();
 
         productRepository.save(product);
+    }
+
+    public void reduceStock(Long productId, Integer quantity){
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 상품이 존재하지 않습니다. productId: " + productId));
+
+        product.removeStock(quantity);
+    }
+
+    public ProductResponseDto findById(Long productId){
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("제품이 존재하지 않습니다."));
+        return ProductResponseDto.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .artistName(product.getArtistName())
+                .year(product.getYear())
+                .condition(product.getCondition())
+                .price(product.getPrice())
+                .stock(product.getStock())
+                .sellerId(product.getSellerId())
+                .saleStartAt(product.getSaleStartAt())
+                .isLimited(product.getIsLimited())
+                .build();
     }
 }
