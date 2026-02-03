@@ -26,9 +26,8 @@ public class ProductController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<Void> createProduct(@RequestHeader("Authorization") String authHeader,
-                                              @RequestBody ProductCreateRequestDto productCreateRequestDto) {
-        UserResponseDto user = userFeignClient.findById(authHeader);
+    public ResponseEntity<Void> createProduct(@RequestBody ProductCreateRequestDto productCreateRequestDto) {
+        UserResponseDto user = userFeignClient.findById();
         productService.createProduct(productCreateRequestDto, user.getUserId());
         return ResponseEntity.ok().build();
     }
