@@ -13,7 +13,7 @@ public class UserFeignFallbackFactory implements FallbackFactory<UserFeignClient
     public UserFeignClient create(Throwable cause) {
         return new UserFeignClient() {
             @Override
-            public UserResponseDto findById(String authHeader) {
+            public UserResponseDto findById() {
                 log.error("User Service findById 호출 중 에러 발생: {}", cause.getMessage());
                 throw new RuntimeException("현재 유저 서비스 이용이 불가능합니다. 잠시 후 다시 시도해주세요.");
             }
