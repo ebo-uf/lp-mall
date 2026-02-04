@@ -21,6 +21,14 @@ public class OrderController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/create-limited")
+    public ResponseEntity<Void> createLimitedOrder(@RequestHeader("Authorization") String authHeader,
+                                            @RequestBody OrderCreateRequestDto orderCreateRequestDto) {
+        String accessToken = authHeader.substring(7);
+        orderService.createLimitedOrder(accessToken, orderCreateRequestDto);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/health")
     public String status() {
         return "Order Service is working properly!";
