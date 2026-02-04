@@ -25,6 +25,11 @@ public class ProductController {
         return ResponseEntity.ok(productService.findAllProducts());
     }
 
+    @GetMapping("/{productId}")
+    public ResponseEntity<ProductResponseDto> findById(@PathVariable Long productId) {
+        return ResponseEntity.ok(productService.findById(productId));
+    }
+
     @PostMapping("/create")
     public ResponseEntity<Void> createProduct(@RequestHeader("Authorization") String authHeader,
                                               @RequestBody ProductCreateRequestDto productCreateRequestDto) {
@@ -33,16 +38,11 @@ public class ProductController {
         return ResponseEntity.ok().build();
     }
 
-    @PutMapping("/reduce-stock/{productId}")
+    @PatchMapping("/reduce-stock/{productId}")
     public ResponseEntity<Void> reduceStock(@PathVariable Long productId,
                                             @RequestParam Integer quantity) {
         productService.reduceStock(productId, quantity);
         return ResponseEntity.ok().build();
-    }
-
-    @GetMapping("/{productId}")
-    public ResponseEntity<ProductResponseDto> findById(@PathVariable Long productId) {
-        return ResponseEntity.ok(productService.findById(productId));
     }
 
     @GetMapping("/health")

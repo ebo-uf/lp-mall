@@ -37,6 +37,23 @@ public class ProductService {
                 .toList();
     }
 
+    public ProductResponseDto findById(Long productId){
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new RuntimeException("제품이 존재하지 않습니다."));
+        return ProductResponseDto.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .artistName(product.getArtistName())
+                .year(product.getYear())
+                .condition(product.getCondition())
+                .price(product.getPrice())
+                .stock(product.getStock())
+                .sellerId(product.getSellerId())
+                .saleStartAt(product.getSaleStartAt())
+                .isLimited(product.getIsLimited())
+                .build();
+    }
+
     public void createProduct(ProductCreateRequestDto productDto, String sellerId){
         Product product = Product.builder()
                 .name(productDto.getName())
@@ -58,22 +75,5 @@ public class ProductService {
                 .orElseThrow(() -> new IllegalArgumentException("해당 상품이 존재하지 않습니다. productId: " + productId));
 
         product.removeStock(quantity);
-    }
-
-    public ProductResponseDto findById(Long productId){
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("제품이 존재하지 않습니다."));
-        return ProductResponseDto.builder()
-                .id(product.getId())
-                .name(product.getName())
-                .artistName(product.getArtistName())
-                .year(product.getYear())
-                .condition(product.getCondition())
-                .price(product.getPrice())
-                .stock(product.getStock())
-                .sellerId(product.getSellerId())
-                .saleStartAt(product.getSaleStartAt())
-                .isLimited(product.getIsLimited())
-                .build();
     }
 }

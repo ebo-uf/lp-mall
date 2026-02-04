@@ -3,14 +3,11 @@ package mall.common.feign;
 import mall.common.dto.ProductResponseDto;
 import mall.common.feign.fallback.ProductFeignFallBackFactory;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 @FeignClient(name = "product-service", fallbackFactory = ProductFeignFallBackFactory.class)
 public interface ProductFeignClient {
-    @PutMapping("/products/reduce-stock/{productId}")
+    @PatchMapping("/products/reduce-stock/{productId}")
     void reduceStock(@PathVariable Long productId,
                      @RequestParam("quantity") int quantity);
 
