@@ -45,6 +45,8 @@ USE order_db;
 CREATE TABLE IF NOT EXISTS `order`
 (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    order_id    VARCHAR(36) NOT NULL UNIQUE,
+    status      VARCHAR(50) NOT NULL,
     user_id     VARCHAR(36) NOT NULL,
     product_id  BIGINT      NOT NULL,
     quantity    INT         NOT NULL,
