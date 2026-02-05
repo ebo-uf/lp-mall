@@ -32,6 +32,9 @@ spring:
       properties:
         spring.json.trusted.packages: "*"
 
+file:
+  dir: uploads/products
+
 eureka:
   client:
     register-with-eureka: true

@@ -9,6 +9,7 @@ import mall.product.dto.ProductFindResponseDto;
 import mall.product.service.ProductService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -31,9 +32,10 @@ public class ProductController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<Void> createProduct(@RequestBody ProductCreateRequestDto productCreateRequestDto) {
+    public ResponseEntity<Void> createProduct(@RequestPart("dto") ProductCreateRequestDto productCreateRequestDto,
+                                              @RequestPart("file") MultipartFile file) {
         UserResponseDto user = userFeignClient.findById();
-        productService.createProduct(productCreateRequestDto, user.getUserId());
+        productService.createProduct(productCreateRequestDto, file, user.getUserId());
         return ResponseEntity.ok().build();
     }
 

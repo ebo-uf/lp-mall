@@ -8,10 +8,17 @@ import mall.product.dto.ProductFindResponseDto;
 import mall.product.entity.Product;
 import mall.product.repository.ProductRepository;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -21,6 +28,9 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final RedissonClient redissonClient;
+
+    @Value("${file.dir}")
+    private String fileDir;
 
     public List<ProductFindResponseDto> findAllProducts(){
         return productRepository.findAll().stream()
@@ -35,6 +45,7 @@ public class ProductService {
                         .sellerId(product.getSellerId())
                         .saleStartAt(product.getSaleStartAt())
                         .isLimited(product.getIsLimited())
+                        .thumbnailPath(product.getThumbnailPath())
                         .createdAt(product.getCreatedAt())
                         .updatedAt(product.getUpdatedAt())
                         .build())
@@ -55,10 +66,13 @@ public class ProductService {
                 .sellerId(product.getSellerId())
                 .saleStartAt(product.getSaleStartAt())
                 .isLimited(product.getIsLimited())
+                .thumbnailPath(product.getThumbnailPath())
                 .build();
     }
 
-    public void createProduct(ProductCreateRequestDto productDto, String sellerId){
+    public void createProduct(ProductCreateRequestDto productDto, MultipartFile file , String sellerId){
+        String filename = saveThumbnail(file);
+
         Product product = Product.builder()
                 .name(productDto.getName())
                 .artistName(productDto.getArtistName())
@@ -69,6 +83,7 @@ public class ProductService {
                 .sellerId(sellerId)
                 .saleStartAt(productDto.getSaleStartAt())
                 .isLimited(productDto.getIsLimited())
+                .thumbnailPath(filename)
                 .build();
 
         productRepository.save(product);
@@ -87,5 +102,24 @@ public class ProductService {
                 .orElseThrow(() -> new RuntimeException("해당 상품이 존재하지 않습니다. productId: " + productId));
 
         product.removeStock(quantity);
+    }
+
+    private String saveThumbnail(MultipartFile thumbnailPath) {
+        if(thumbnailPath == null || thumbnailPath.isEmpty()) return null;
+
+        String originalName = thumbnailPath.getOriginalFilename();
+        String savedName = UUID.randomUUID() + "_" + originalName;
+
+
+        try {
+            Path root = Paths.get(fileDir).toAbsolutePath().normalize();
+            Files.createDirectories(root);
+            Path targetPath = root.resolve(savedName);
+            thumbnailPath.transferTo(targetPath.toFile());
+
+            return savedName;
+        } catch (IOException e) {
+            throw new RuntimeException("이미지 저장 실패!", e);
+        }
     }
 }
