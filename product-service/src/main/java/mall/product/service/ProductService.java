@@ -72,7 +72,7 @@ public class ProductService {
 
     public void reduceStock(Long productId, Integer quantity){
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 상품이 존재하지 않습니다. productId: " + productId));
+                .orElseThrow(() -> new RuntimeException("해당 상품이 존재하지 않습니다. productId: " + productId));
 
         product.removeStock(quantity);
     }

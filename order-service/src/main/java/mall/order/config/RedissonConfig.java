@@ -21,6 +21,7 @@ public class RedissonConfig {
         Config config = new Config();
         config.useSingleServer()
                 .setAddress("redis://" + redisHost + ":" + redisPort);
+        config.setCodec(new org.redisson.client.codec.StringCodec());
         return Redisson.create(config);
     }
 }

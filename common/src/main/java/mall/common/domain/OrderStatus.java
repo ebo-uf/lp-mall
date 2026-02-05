@@ -1,5 +1,8 @@
 package mall.common.domain;
 
+import lombok.Getter;
+
+@Getter
 public enum OrderStatus {
     PENDING("결제 대기"),
     COMPLETED("주문 완료"),
@@ -12,7 +15,4 @@ public enum OrderStatus {
         this.description = description;
     }
 
-    public String getDescription() {
-        return description;
-    }
 }
