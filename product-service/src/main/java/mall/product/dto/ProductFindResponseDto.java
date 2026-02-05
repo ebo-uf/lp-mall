@@ -19,6 +19,7 @@ public class ProductFindResponseDto {
     private String sellerId;
     private LocalDateTime saleStartAt;
     private Boolean isLimited;
+    private String thumbnailPath;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -49,6 +49,9 @@ public class Product {
     @Column(name = "is_limited")
     private Boolean isLimited;
 
+    @Column(name = "thumbnail_path")
+    private String thumbnailPath;
+
     @CreatedDate
     @Column(name = "created_at")
     private LocalDateTime createdAt;
