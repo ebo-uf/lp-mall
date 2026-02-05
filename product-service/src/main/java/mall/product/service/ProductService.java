@@ -1,22 +1,26 @@
 package mall.product.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mall.common.dto.ProductResponseDto;
 import mall.product.dto.ProductCreateRequestDto;
 import mall.product.dto.ProductFindResponseDto;
 import mall.product.entity.Product;
 import mall.product.repository.ProductRepository;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class ProductService {
 
     private final ProductRepository productRepository;
+    private final RedissonClient redissonClient;
 
     public List<ProductFindResponseDto> findAllProducts(){
         return productRepository.findAll().stream()
@@ -68,6 +72,14 @@ public class ProductService {
                 .build();
 
         productRepository.save(product);
+
+        if(productDto.getIsLimited()) {
+            Long productId = product.getId();
+            redissonClient.getAtomicLong("stock:product:" + productId).set(productDto.getStock());
+            redissonClient.getBucket("price:product:" + productId).set(productDto.getPrice());
+            redissonClient.getBucket("openAt:product:" + productId).set(productDto.getSaleStartAt());
+            log.info("한정판 상품 캐싱 완료 productId: {}", productId);
+        }
     }
 
     public void reduceStock(Long productId, Integer quantity){
