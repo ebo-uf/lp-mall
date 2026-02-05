@@ -18,6 +18,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -56,6 +57,8 @@ public class OrderService {
     }
 
     public void createLimitedOrder(String accessToken, OrderCreateRequestDto orderRequest) {
+        checkDate(orderRequest.getProductId());
+
         String userId = jwtTokenParser.parseClaimsAllowExpired(accessToken).get("userId", String.class);
         Long productId = orderRequest.getProductId();
         int quantity = orderRequest.getQuantity();
@@ -101,6 +104,15 @@ public class OrderService {
             if (lock.isHeldByCurrentThread()) {
                 lock.unlock();
             }
+        }
+    }
+
+    private void checkDate(Long productId) {
+        RBucket<String> openAtStr = redissonClient.getBucket("openAt:product:" + productId);
+        LocalDateTime openAt = LocalDateTime.parse(openAtStr.get());
+
+        if (LocalDateTime.now().isBefore(openAt)) {
+            throw new RuntimeException("아직 판매 시간이 아닙니다.");
         }
     }
 
