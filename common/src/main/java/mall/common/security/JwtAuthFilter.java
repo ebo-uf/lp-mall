@@ -20,7 +20,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
 	private final JwtTokenParser jwtTokenProvider;
 
-	private static final List<String> PERMIT_URLS = List.of("/auth/login", "/auth/register");
+	private static final List<String> PERMIT_URLS = List.of("/auth/login", "/auth/register", "/products/images");
 
 	private boolean isPermitUri(String uri) {
 		return PERMIT_URLS.stream().anyMatch(uri::startsWith);
