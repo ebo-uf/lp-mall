@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 @FeignClient(name = "product-service", fallbackFactory = ProductFeignFallBackFactory.class)
 public interface ProductFeignClient {
-    @PatchMapping("/products/reduce-stock/{productId}")
+    @PostMapping("/products/reduce-stock/{productId}")
     void reduceStock(@PathVariable Long productId,
                      @RequestParam("quantity") int quantity);
 

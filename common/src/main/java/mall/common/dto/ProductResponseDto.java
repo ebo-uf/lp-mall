@@ -19,4 +19,6 @@ public class ProductResponseDto {
     private LocalDateTime saleStartAt;
     private Boolean isLimited;
     private String thumbnailPath;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

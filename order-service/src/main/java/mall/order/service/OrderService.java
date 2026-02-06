@@ -11,16 +11,13 @@ import mall.order.dto.OrderCreateRequestDto;
 import mall.order.entity.Order;
 import mall.order.kafka.OrderEventProducer;
 import mall.order.repository.OrderRepository;
-import org.redisson.api.RAtomicLong;
-import org.redisson.api.RBucket;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
+import org.redisson.api.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+//import java.util.Collections;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -63,47 +60,31 @@ public class OrderService {
         Long productId = orderRequest.getProductId();
         int quantity = orderRequest.getQuantity();
 
-        RLock lock = redissonClient.getLock("lock:product:" + productId);
+        decreaseRedisStock(productId);
 
         try {
-            if (!lock.tryLock(5, 1, TimeUnit.SECONDS)) {
-                throw new RuntimeException("접속자가 많아 주문이 지연되고 있습니다.");
-            }
+            Long price = getProductPrice(productId);
+            String orderId = UUID.randomUUID().toString();
 
-            decreaseRedisStock(productId);
+            Order order = Order.builder()
+                    .orderId(orderId)
+                    .status(OrderStatus.PENDING)
+                    .userId(userId)
+                    .productId(productId)
+                    .quantity(quantity)
+                    .totalPrice(price * quantity)
+                    .build();
 
-            try {
-                Long price = getProductPrice(productId);
-                String orderId = UUID.randomUUID().toString();
+            orderRepository.save(order);
 
-                Order order = Order.builder()
-                        .orderId(orderId)
-                        .status(OrderStatus.PENDING)
-                        .userId(userId)
-                        .productId(productId)
-                        .quantity(quantity)
-                        .totalPrice(price * quantity)
-                        .build();
+            OrderCreatedEvent event = new OrderCreatedEvent(orderId, userId, productId, quantity);
+            orderEventProducer.sendOrderEvent(event);
 
-                orderRepository.save(order);
+            log.info("주문 접수 완료 (PENDING): orderId = {}", orderId);
 
-                OrderCreatedEvent event = new OrderCreatedEvent(orderId, userId, productId, quantity);
-                orderEventProducer.sendOrderEvent(event);
-
-                log.info("주문 접수 완료 (PENDING): orderId = {}", orderId);
-
-            } catch (Exception e) {
-                rollbackRedisStock(productId);
-                throw e;
-            }
-
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("주문 처리 중 시스템 오류가 발생했습니다.");
-        } finally {
-            if (lock.isHeldByCurrentThread()) {
-                lock.unlock();
-            }
+        } catch (Exception e) {
+            rollbackRedisStock(productId);
+            throw e;
         }
     }
 
@@ -123,6 +104,30 @@ public class OrderService {
             throw new RuntimeException("매진되었습니다.");
         }
     }
+
+//    private void decreaseRedisStockWithLua(Long productId) {
+//        // KEYS[1]: 상품 재고 키 ("stock:product:1")
+//        // ARGV[1]: 차감할 수량 (1)
+//        String script =
+//                "local stock = redis.call('get', KEYS[1]) " +
+//                        "if not stock or tonumber(stock) < tonumber(ARGV[1]) then " +
+//                        "  return -1 " + // 재고 부족 시 -1 반환
+//                        "else " +
+//                        "  return redis.call('decrby', KEYS[1], ARGV[1]) " + // 재고 있으면 차감
+//                        "end";
+//
+//        Long result = redissonClient.getScript().eval(
+//                RScript.Mode.READ_WRITE,
+//                script,
+//                RScript.ReturnType.VALUE,
+//                Collections.singletonList("stock:product:" + productId),
+//                "1" // ARGV[1] 에 전달할 수량
+//        );
+//
+//        if (result == -1) {
+//            throw new RuntimeException("매진되었습니다.");
+//        }
+//    }
 
     private void rollbackRedisStock(Long productId) {
         RAtomicLong stock = redissonClient.getAtomicLong("stock:product:" + productId);

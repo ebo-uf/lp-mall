@@ -1,7 +1,6 @@
 package mall.product.controller;
 
 import lombok.RequiredArgsConstructor;
-import mall.common.dto.ProductResponseDto;
 import mall.common.dto.UserResponseDto;
 import mall.common.feign.UserFeignClient;
 import mall.product.dto.ProductCreateRequestDto;
@@ -27,7 +26,7 @@ public class ProductController {
     }
 
     @GetMapping("/{productId}")
-    public ResponseEntity<ProductResponseDto> findById(@PathVariable Long productId) {
+    public ResponseEntity<ProductFindResponseDto> findById(@PathVariable Long productId) {
         return ResponseEntity.ok(productService.findById(productId));
     }
 
@@ -39,7 +38,7 @@ public class ProductController {
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/reduce-stock/{productId}")
+    @PostMapping("/reduce-stock/{productId}")
     public ResponseEntity<Void> reduceStock(@PathVariable Long productId,
                                             @RequestParam Integer quantity) {
         productService.reduceStock(productId, quantity);
