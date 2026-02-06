@@ -2,7 +2,6 @@ package mall.product.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import mall.common.dto.ProductResponseDto;
 import mall.product.dto.ProductCreateRequestDto;
 import mall.product.dto.ProductFindResponseDto;
 import mall.product.entity.Product;
@@ -52,10 +51,10 @@ public class ProductService {
                 .toList();
     }
 
-    public ProductResponseDto findById(Long productId){
+    public ProductFindResponseDto findById(Long productId){
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("제품이 존재하지 않습니다."));
-        return ProductResponseDto.builder()
+        return ProductFindResponseDto.builder()
                 .id(product.getId())
                 .name(product.getName())
                 .artistName(product.getArtistName())
@@ -67,6 +66,8 @@ public class ProductService {
                 .saleStartAt(product.getSaleStartAt())
                 .isLimited(product.getIsLimited())
                 .thumbnailPath(product.getThumbnailPath())
+                .createdAt(product.getCreatedAt())
+                .updatedAt(product.getUpdatedAt())
                 .build();
     }
 
