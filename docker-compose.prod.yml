@@ -1,5 +1,5 @@
 # 서버 배포용 전체 스택 (인프라 + 애플리케이션)
-# 사용법: docker-compose -f docker-compose.prod.yml up -d
+# 사용법: DOCKERHUB_USER=xxx docker compose -f docker-compose.prod.yml up -d
 
 services:
   mysql:
@@ -13,6 +13,11 @@ services:
     volumes:
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ppassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   redis:
@@ -35,7 +40,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:29092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
@@ -70,6 +75,8 @@ services:
     container_name: lp-gateway
     ports:
       - "8000:8000"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka:8761/eureka/
     depends_on:
       - eureka
     restart: unless-stopped
@@ -79,9 +86,16 @@ services:
     container_name: lp-user
     ports:
       - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/user_db
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka:8761/eureka/
     depends_on:
-      - mysql
-      - eureka
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
     restart: unless-stopped
 
   product-service:
@@ -89,11 +103,19 @@ services:
     container_name: lp-product
     ports:
       - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/product_db
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAPSERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka:8761/eureka/
+    volumes:
+      - product_uploads:/app/uploads/products
     depends_on:
-      - mysql
-      - redis
-      - kafka
-      - eureka
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
     restart: unless-stopped
 
   order-service:
@@ -101,11 +123,17 @@ services:
     container_name: lp-order
     ports:
       - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/order_db
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAPSERVERS: kafka:29092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka:8761/eureka/
     depends_on:
-      - mysql
-      - redis
-      - kafka
-      - eureka
+      mysql:
+        condition: service_healthy
+      eureka:
+        condition: service_started
     restart: unless-stopped
 
   frontend:
@@ -119,3 +147,4 @@ services:
 
 volumes:
   mysql_data:
+  product_uploads:
