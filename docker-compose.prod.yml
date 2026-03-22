@@ -1,0 +1,121 @@
+# 서버 배포용 전체 스택 (인프라 + 애플리케이션)
+# 사용법: docker-compose -f docker-compose.prod.yml up -d
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-user
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: mall_db
+    volumes:
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+  redis:
+    image: redis:latest
+    container_name: redis-user
+    ports:
+      - "6380:6379"
+    volumes:
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+
+  kafka:
+    image: apache/kafka:latest
+    container_name: kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,INTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:29092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_CLUSTER_ID: 'MkU3OTM3ODMyNTZINDY3ZGF'
+    ports:
+      - "9092:9092"
+    restart: unless-stopped
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8084:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    restart: unless-stopped
+
+  eureka:
+    image: ${DOCKERHUB_USER}/lp-eureka:latest
+    container_name: lp-eureka
+    ports:
+      - "8761:8761"
+    restart: unless-stopped
+
+  gateway:
+    image: ${DOCKERHUB_USER}/lp-gateway:latest
+    container_name: lp-gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - eureka
+    restart: unless-stopped
+
+  user-service:
+    image: ${DOCKERHUB_USER}/lp-user:latest
+    container_name: lp-user
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mysql
+      - eureka
+    restart: unless-stopped
+
+  product-service:
+    image: ${DOCKERHUB_USER}/lp-product:latest
+    container_name: lp-product
+    ports:
+      - "8082:8082"
+    depends_on:
+      - mysql
+      - redis
+      - kafka
+      - eureka
+    restart: unless-stopped
+
+  order-service:
+    image: ${DOCKERHUB_USER}/lp-order:latest
+    container_name: lp-order
+    ports:
+      - "8083:8083"
+    depends_on:
+      - mysql
+      - redis
+      - kafka
+      - eureka
+    restart: unless-stopped
+
+  frontend:
+    image: ${DOCKERHUB_USER}/lp-frontend:latest
+    container_name: lp-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

@@ -1,4 +1,4 @@
-name: Java CI with Gradle
+name: CI/CD - Build & Push to Docker Hub
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
+  # ── Job 1: PR에서도 빌드 검증 ──────────────────────────────
   build:
     runs-on: ubuntu-latest
 
@@ -29,8 +30,75 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Build Backend with Gradle
+        run: chmod +x gradlew && ./gradlew clean build -x test
 
-      - name: Build with Gradle
-        run: ./gradlew clean build -x test
+  # ── Job 2: main 브랜치 push 시에만 Docker Hub 배포 ──────────
+  docker-push:
+    runs-on: ubuntu-latest
+    needs: build                      # build Job 성공 후에만 실행
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Gradle Caching
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build Backend JARs
+        run: chmod +x gradlew && ./gradlew clean build -x test
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Backend Images
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-eureka:latest   ./eureka/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-gateway:latest  ./gateway/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-user:latest     ./user-service/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-product:latest  ./product-service/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-order:latest    ./order-service/
+
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-eureka:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-gateway:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-user:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-product:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-order:latest
+
+  # ── Job 3: EC2 배포 ──────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: docker-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}      # EC2 퍼블릭 IP
+          username: ${{ secrets.SERVER_USER }}  # ec2-user
+          key: ${{ secrets.SERVER_SSH_KEY }}    # .pem 파일 내용
+          script: |
+            cd /app/lp-mall
+            git pull origin main
+            DOCKERHUB_USER=${{ secrets.DOCKERHUB_USERNAME }} \
+              docker compose -f docker-compose.prod.yml pull
+            DOCKERHUB_USER=${{ secrets.DOCKERHUB_USERNAME }} \
+              docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
