@@ -1,3 +1,8 @@
+-- Debezium CDC 전용 계정
+CREATE USER IF NOT EXISTS 'debezium'@'%' IDENTIFIED BY 'debezium';
+GRANT SELECT, RELOAD, SHOW DATABASES, REPLICATION SLAVE, REPLICATION CLIENT ON *.* TO 'debezium'@'%';
+FLUSH PRIVILEGES;
+
 CREATE DATABASE IF NOT EXISTS user_db;
 USE user_db;
 
@@ -20,6 +25,18 @@ CREATE TABLE IF NOT EXISTS user
 
 CREATE DATABASE IF NOT EXISTS product_db;
 USE product_db;
+
+CREATE TABLE IF NOT EXISTS outbox
+(
+    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    aggregate_type VARCHAR(255) NOT NULL,
+    aggregate_id   VARCHAR(255) NOT NULL,
+    type           VARCHAR(255) NOT NULL,
+    payload        TEXT         NOT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS product
 (
@@ -53,6 +70,18 @@ CREATE TABLE IF NOT EXISTS `order`
     quantity    INT         NOT NULL,
     total_price BIGINT      NOT NULL,
     created_at  DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS outbox
+(
+    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    aggregate_type VARCHAR(255) NOT NULL,
+    aggregate_id   VARCHAR(255) NOT NULL,
+    type           VARCHAR(255) NOT NULL,
+    payload        TEXT         NOT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci;

@@ -88,3 +88,22 @@ jobs:
             DOCKERHUB_USER=${{ secrets.DOCKERHUB_USERNAME }} \
               docker compose -f docker-compose.prod.yml up -d
             docker image prune -f
+
+            echo "Waiting for kafka-connect..."
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:8086/connectors > /dev/null 2>&1; then
+                echo "kafka-connect is ready"
+                break
+              fi
+              echo "Waiting... ($i/30)"
+              sleep 5
+            done
+
+            if ! curl -sf http://localhost:8086/connectors/lp-mall-outbox-connector > /dev/null 2>&1; then
+              curl -X POST http://localhost:8086/connectors \
+                -H "Content-Type: application/json" \
+                -d @/app/lp-mall/register-connector.json
+              echo "Connector registered"
+            else
+              echo "Connector already exists, skipping"
+            fi

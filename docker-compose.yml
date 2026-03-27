@@ -2,6 +2,7 @@ services:
   mysql:
     image: mysql:8.0
     container_name: mysql-user
+    command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW --binlog-row-image=FULL
     ports:
       - "3307:3306"
     environment:
@@ -49,3 +50,21 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+  kafka-connect:
+    image: quay.io/debezium/connect:latest
+    container_name: kafka-connect
+    ports:
+      - "8086:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: debezium-group
+      CONFIG_STORAGE_TOPIC: debezium.configs
+      OFFSET_STORAGE_TOPIC: debezium.offsets
+      STATUS_STORAGE_TOPIC: debezium.status
+      CONFIG_STORAGE_REPLICATION_FACTOR: "1"
+      OFFSET_STORAGE_REPLICATION_FACTOR: "1"
+      STATUS_STORAGE_REPLICATION_FACTOR: "1"
+    depends_on:
+      - kafka
+      - mysql
