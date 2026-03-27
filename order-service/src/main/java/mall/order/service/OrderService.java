@@ -1,5 +1,7 @@
 package mall.order.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mall.common.domain.OrderStatus;
@@ -9,8 +11,9 @@ import mall.common.feign.ProductFeignClient;
 import mall.common.security.JwtTokenParser;
 import mall.order.dto.OrderCreateRequestDto;
 import mall.order.entity.Order;
-import mall.order.kafka.OrderEventProducer;
+import mall.order.entity.OutboxEvent;
 import mall.order.repository.OrderRepository;
+import mall.order.repository.OutboxRepository;
 import org.redisson.api.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,10 +29,11 @@ import java.util.UUID;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OutboxRepository outboxRepository;
     private final ProductFeignClient productFeignClient;
     private final JwtTokenParser jwtTokenParser;
     private final RedissonClient redissonClient;
-    private final OrderEventProducer orderEventProducer;
+    private final ObjectMapper objectMapper;
 
     public void createOrder(String accessToken, OrderCreateRequestDto orderRequest) {
 
@@ -77,8 +81,19 @@ public class OrderService {
 
             orderRepository.save(order);
 
-            OrderCreatedEvent event = new OrderCreatedEvent(orderId, userId, productId, quantity);
-            orderEventProducer.sendOrderEvent(event);
+            // Outbox에 이벤트 저장 (같은 트랜잭션) — Debezium이 binlog 감지 후 Kafka 발행
+            try {
+                String payload = objectMapper.writeValueAsString(
+                        new OrderCreatedEvent(orderId, userId, productId, quantity));
+                outboxRepository.save(OutboxEvent.builder()
+                        .aggregateType("order-events")
+                        .aggregateId(orderId)
+                        .type("OrderCreatedEvent")
+                        .payload(payload)
+                        .build());
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Outbox 직렬화 실패", e);
+            }
 
             log.info("주문 접수 완료 (PENDING): orderId = {}", orderId);
 

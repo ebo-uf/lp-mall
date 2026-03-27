@@ -2,8 +2,8 @@ package mall.product.kafka;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import mall.product.service.ProductService;
 import mall.common.dto.OrderCreatedEvent;
+import mall.product.service.OrderEventService;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -12,19 +12,15 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OrderEventConsumer {
 
-    private final ProductService productService;
-    private final ProductResultProducer productResultProducer;
+    private final OrderEventService orderEventService;
 
     @KafkaListener(topics = "order-events", groupId = "product-service-group")
     public void handleOrder(OrderCreatedEvent event) {
         try {
-            productService.reduceStock(event.getProductId(), event.getQuantity());
-
-            productResultProducer.sendProductResult(event.getOrderId(), "SUCCESS", event.getProductId());
-            log.info("재고 차감 성공");
+            orderEventService.processSuccess(event);
         } catch (Exception e) {
-            productResultProducer.sendProductResult(event.getOrderId(), "FAILURE", event.getProductId());
-            log.info("재고 차감 실패");
+            log.error("재고 차감 실패 - orderId: {}, 사유: {}", event.getOrderId(), e.getMessage());
+            orderEventService.processFailure(event);
         }
     }
 }
