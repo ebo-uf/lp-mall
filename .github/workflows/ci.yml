@@ -55,17 +55,19 @@ jobs:
 
       - name: Build & Push Backend Images
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-eureka:latest   ./eureka/
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-gateway:latest  ./gateway/
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-user:latest     ./user-service/
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-product:latest  ./product-service/
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-order:latest    ./order-service/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-eureka:latest    ./eureka/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-gateway:latest   ./gateway/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-user:latest      ./user-service/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-product:latest   ./product-service/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-order:latest     ./order-service/
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/lp-payment:latest   ./payment-service/
 
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-eureka:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-gateway:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-user:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-product:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-order:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/lp-payment:latest
 
   # ── Job 3: EC2 배포 ──────────────────────────────────────
   deploy:
