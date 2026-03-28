@@ -88,6 +88,7 @@ services:
     ports:
       - "8081:8081"
     environment:
+      TZ: Asia/Seoul
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/user_db
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
@@ -105,6 +106,7 @@ services:
     ports:
       - "8082:8082"
     environment:
+      TZ: Asia/Seoul
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/product_db
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
@@ -125,6 +127,7 @@ services:
     ports:
       - "8083:8083"
     environment:
+      TZ: Asia/Seoul
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/order_db
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
