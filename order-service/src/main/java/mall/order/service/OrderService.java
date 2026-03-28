@@ -6,20 +6,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mall.common.domain.OrderStatus;
 import mall.common.dto.OrderCreatedEvent;
+import mall.common.dto.PaymentRefundEvent;
 import mall.common.dto.ProductResponseDto;
 import mall.common.feign.ProductFeignClient;
 import mall.common.security.JwtTokenParser;
 import mall.order.dto.OrderCreateRequestDto;
+import mall.order.dto.OrderHistoryResponseDto;
 import mall.order.entity.Order;
 import mall.order.entity.OutboxEvent;
 import mall.order.repository.OrderRepository;
 import mall.order.repository.OutboxRepository;
-import org.redisson.api.*;
+import org.redisson.api.RAtomicLong;
+import org.redisson.api.RBucket;
+import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-//import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -35,41 +39,24 @@ public class OrderService {
     private final RedissonClient redissonClient;
     private final ObjectMapper objectMapper;
 
-    public void createOrder(String accessToken, OrderCreateRequestDto orderRequest) {
-
+    public String reserveOrder(String accessToken, OrderCreateRequestDto request) {
+        boolean limited = Boolean.TRUE.equals(request.getIsLimited());
+        Long productId = request.getProductId();
+        int quantity = request.getQuantity();
         String userId = jwtTokenParser.parseClaimsAllowExpired(accessToken).get("userId", String.class);
-        Long productId = orderRequest.getProductId();
-        int quantity = orderRequest.getQuantity();
 
-        ProductResponseDto productResponseDto = productFeignClient.getProduct(productId);
+        Long price;
+        if (limited) {
+            checkDate(productId);
+            decreaseRedisStock(productId);
+            price = getProductPriceFromRedis(productId);
+        } else {
+            ProductResponseDto product = productFeignClient.getProduct(productId);
+            price = product.getPrice();
+        }
 
-        productFeignClient.reduceStock(productId, quantity);
-
-        Order order = Order.builder()
-                .orderId(UUID.randomUUID().toString())
-                .status(OrderStatus.COMPLETED)
-                .userId(userId)
-                .productId(productId)
-                .quantity(quantity)
-                .totalPrice(productResponseDto.getPrice() * quantity)
-                .build();
-
-        orderRepository.save(order);
-    }
-
-    public void createLimitedOrder(String accessToken, OrderCreateRequestDto orderRequest) {
-        checkDate(orderRequest.getProductId());
-
-        String userId = jwtTokenParser.parseClaimsAllowExpired(accessToken).get("userId", String.class);
-        Long productId = orderRequest.getProductId();
-        int quantity = orderRequest.getQuantity();
-
-        decreaseRedisStock(productId);
-
+        String orderId = UUID.randomUUID().toString();
         try {
-            Long price = getProductPrice(productId);
-            String orderId = UUID.randomUUID().toString();
-
             Order order = Order.builder()
                     .orderId(orderId)
                     .status(OrderStatus.PENDING)
@@ -77,36 +64,119 @@ public class OrderService {
                     .productId(productId)
                     .quantity(quantity)
                     .totalPrice(price * quantity)
+                    .isLimited(limited)
                     .build();
-
             orderRepository.save(order);
+            log.info("재고 점유 완료 (PENDING): orderId={}", orderId);
+            return orderId;
+        } catch (Exception e) {
+            if (limited) rollbackRedisStock(productId);
+            throw e;
+        }
+    }
 
-            // Outbox에 이벤트 저장 (같은 트랜잭션) — Debezium이 binlog 감지 후 Kafka 발행
+    public void cancelReservation(String orderId) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다."));
+
+        if (order.getStatus() == OrderStatus.PENDING) {
+            order.setStatus(OrderStatus.CANCELED);
+            if (order.isLimited()) rollbackRedisStock(order.getProductId());
+            log.info("주문 취소 (결제 이탈): orderId={}", orderId);
+        }
+    }
+
+    public void handlePaymentCompleted(String orderId) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다."));
+
+        if (order.getStatus() != OrderStatus.PENDING) {
+            log.warn("이미 처리된 주문: orderId={}, status={}", orderId, order.getStatus());
+            return;
+        }
+
+        order.setStatus(OrderStatus.PAYMENT_COMPLETED);
+
+        try {
+            String payload = objectMapper.writeValueAsString(
+                    new OrderCreatedEvent(orderId, order.getUserId(), order.getProductId(), order.getQuantity()));
+            outboxRepository.save(OutboxEvent.builder()
+                    .aggregateType("order-events")
+                    .aggregateId(orderId)
+                    .type("OrderCreatedEvent")
+                    .payload(payload)
+                    .build());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Outbox 직렬화 실패", e);
+        }
+
+        log.info("결제 완료 처리: orderId={}", orderId);
+    }
+
+    public void completeOrder(String orderId) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다."));
+
+        if (order.getStatus() == OrderStatus.PAYMENT_COMPLETED) {
+            order.setStatus(OrderStatus.COMPLETED);
+            log.info("주문 완료: orderId={}", orderId);
+        }
+    }
+
+    public void cancelOrder(String orderId) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다."));
+
+        if (order.getStatus() == OrderStatus.PAYMENT_COMPLETED) {
+            order.setStatus(OrderStatus.CANCELED);
+            if (order.isLimited()) rollbackRedisStock(order.getProductId());
+
             try {
-                String payload = objectMapper.writeValueAsString(
-                        new OrderCreatedEvent(orderId, userId, productId, quantity));
+                String payload = objectMapper.writeValueAsString(new PaymentRefundEvent(orderId));
                 outboxRepository.save(OutboxEvent.builder()
-                        .aggregateType("order-events")
+                        .aggregateType("payment-refund")
                         .aggregateId(orderId)
-                        .type("OrderCreatedEvent")
+                        .type("PaymentRefundEvent")
                         .payload(payload)
                         .build());
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Outbox 직렬화 실패", e);
             }
 
-            log.info("주문 접수 완료 (PENDING): orderId = {}", orderId);
+            log.info("주문 취소 + 환불 이벤트 발행: orderId={}", orderId);
+        }
+    }
 
+    public List<OrderHistoryResponseDto> getMyOrders(String accessToken) {
+        String userId = jwtTokenParser.parseClaimsAllowExpired(accessToken).get("userId", String.class);
+        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(order -> {
+                    String productName = fetchProductName(order.getProductId());
+                    return OrderHistoryResponseDto.builder()
+                            .orderId(order.getOrderId())
+                            .status(order.getStatus())
+                            .productId(order.getProductId())
+                            .productName(productName)
+                            .quantity(order.getQuantity())
+                            .totalPrice(order.getTotalPrice())
+                            .isLimited(order.isLimited())
+                            .createdAt(order.getCreatedAt())
+                            .build();
+                })
+                .toList();
+    }
+
+    private String fetchProductName(Long productId) {
+        try {
+            return productFeignClient.getProduct(productId).getName();
         } catch (Exception e) {
-            rollbackRedisStock(productId);
-            throw e;
+            return "상품 정보 없음";
         }
     }
 
     private void checkDate(Long productId) {
         RBucket<String> openAtStr = redissonClient.getBucket("openAt:product:" + productId);
         LocalDateTime openAt = LocalDateTime.parse(openAtStr.get());
-
         if (LocalDateTime.now().isBefore(openAt)) {
             throw new RuntimeException("아직 판매 시간이 아닙니다.");
         }
@@ -120,60 +190,14 @@ public class OrderService {
         }
     }
 
-//    private void decreaseRedisStockWithLua(Long productId) {
-//        // KEYS[1]: 상품 재고 키 ("stock:product:1")
-//        // ARGV[1]: 차감할 수량 (1)
-//        String script =
-//                "local stock = redis.call('get', KEYS[1]) " +
-//                        "if not stock or tonumber(stock) < tonumber(ARGV[1]) then " +
-//                        "  return -1 " + // 재고 부족 시 -1 반환
-//                        "else " +
-//                        "  return redis.call('decrby', KEYS[1], ARGV[1]) " + // 재고 있으면 차감
-//                        "end";
-//
-//        Long result = redissonClient.getScript().eval(
-//                RScript.Mode.READ_WRITE,
-//                script,
-//                RScript.ReturnType.VALUE,
-//                Collections.singletonList("stock:product:" + productId),
-//                "1" // ARGV[1] 에 전달할 수량
-//        );
-//
-//        if (result == -1) {
-//            throw new RuntimeException("매진되었습니다.");
-//        }
-//    }
-
     private void rollbackRedisStock(Long productId) {
-        RAtomicLong stock = redissonClient.getAtomicLong("stock:product:" + productId);
-        stock.incrementAndGet();
-        log.info("로직 실패로 인한 Redis 재고 롤백 완료 - 상품 ID: {}", productId);
+        redissonClient.getAtomicLong("stock:product:" + productId).incrementAndGet();
+        log.info("Redis 재고 롤백: productId={}", productId);
     }
 
-    private Long getProductPrice(Long productId) {
-        RBucket<String> priceBucket = redissonClient.getBucket("price:product:" + productId);
-        String priceStr = priceBucket.get();
-        if (priceStr == null) throw new RuntimeException("상품 정보(가격)를 찾을 수 없습니다.");
+    private Long getProductPriceFromRedis(Long productId) {
+        String priceStr = redissonClient.<String>getBucket("price:product:" + productId).get();
+        if (priceStr == null) throw new RuntimeException("상품 가격 정보를 찾을 수 없습니다.");
         return Long.parseLong(priceStr);
-    }
-
-    public void completeOrder(String orderId) {
-        Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다."));
-
-        if (order.getStatus() == OrderStatus.PENDING) {
-            order.setStatus(OrderStatus.COMPLETED);
-            log.info("주문 완료 처리 성공: orderId = {}", orderId);
-        }
-    }
-
-    public void cancelOrder(String orderId) {
-        Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("주문을 찾을 수 없습니다."));
-
-        if (order.getStatus() == OrderStatus.PENDING) {
-            order.setStatus(OrderStatus.CANCELED);
-            log.info("주문 취소 처리 완료: orderId = {}", orderId);
-        }
     }
 }

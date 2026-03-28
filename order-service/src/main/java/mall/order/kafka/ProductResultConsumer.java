@@ -1,11 +1,10 @@
 package mall.order.kafka;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import mall.common.dto.ProductResultEvent;
 import mall.order.service.OrderService;
-import org.redisson.api.RAtomicLong;
-import org.redisson.api.RedissonClient;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
@@ -15,24 +14,24 @@ import org.springframework.stereotype.Component;
 public class ProductResultConsumer {
 
     private final OrderService orderService;
-    private final RedissonClient redissonClient;
+    private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = "product-results", groupId = "order-service-group")
-    public void handleProductResult(ProductResultEvent event) {
-        log.info("상품 처리 결과 수신: orderId = {}, status = {}", event.getOrderId(), event.getStatus());
-        if ("SUCCESS".equals(event.getStatus())) {
-            orderService.completeOrder(event.getOrderId());
+    public void handleProductResult(String rawPayload) {
+        try {
+            String json = rawPayload;
+            if (json.startsWith("\"") && json.endsWith("\"")) {
+                json = objectMapper.readValue(json, String.class);
+            }
+            ProductResultEvent event = objectMapper.readValue(json, ProductResultEvent.class);
+            log.info("상품 처리 결과 수신: orderId={}, status={}", event.getOrderId(), event.getStatus());
+            if ("SUCCESS".equals(event.getStatus())) {
+                orderService.completeOrder(event.getOrderId());
+            } else {
+                orderService.cancelOrder(event.getOrderId());
+            }
+        } catch (Exception e) {
+            log.error("product-results 메시지 파싱 실패: {}", rawPayload, e);
         }
-        else {
-            orderService.cancelOrder(event.getOrderId());
-            rollbackRedisStock(event.getProductId());
-        }
-    }
-
-    private void rollbackRedisStock(Long productId) {
-        String stockKey = "stock:product:" + productId;
-        RAtomicLong stock = redissonClient.getAtomicLong(stockKey);
-        long currentStock = stock.incrementAndGet();
-        log.info("보상 트랜잭션: Redis 재고 복구 완료. 상품ID: {}, 현재재고: {}", productId, currentStock);
     }
 }

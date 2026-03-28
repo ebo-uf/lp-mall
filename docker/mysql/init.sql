@@ -63,12 +63,40 @@ USE order_db;
 CREATE TABLE IF NOT EXISTS `order`
 (
     id          BIGINT AUTO_INCREMENT PRIMARY KEY,
-    order_id    VARCHAR(36) NOT NULL UNIQUE,
-    status      VARCHAR(50) NOT NULL,
-    user_id     VARCHAR(36) NOT NULL,
-    product_id  BIGINT      NOT NULL,
-    quantity    INT         NOT NULL,
-    total_price BIGINT      NOT NULL,
+    order_id    VARCHAR(36)  NOT NULL UNIQUE,
+    status      VARCHAR(50)  NOT NULL,
+    user_id     VARCHAR(36)  NOT NULL,
+    product_id  BIGINT       NOT NULL,
+    quantity    INT          NOT NULL,
+    total_price BIGINT       NOT NULL,
+    is_limited  BOOL         NOT NULL DEFAULT FALSE,
+    created_at  DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS outbox
+(
+    id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    aggregate_type VARCHAR(255) NOT NULL,
+    aggregate_id   VARCHAR(255) NOT NULL,
+    type           VARCHAR(255) NOT NULL,
+    payload        TEXT         NOT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci;
+
+CREATE DATABASE IF NOT EXISTS payment_db;
+USE payment_db;
+
+CREATE TABLE IF NOT EXISTS payment
+(
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    order_id    VARCHAR(36)  NOT NULL UNIQUE,
+    payment_key VARCHAR(255) NOT NULL,
+    amount      BIGINT       NOT NULL,
+    status      VARCHAR(50)  NOT NULL,
     created_at  DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4

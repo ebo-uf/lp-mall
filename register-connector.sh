@@ -22,7 +22,7 @@ curl -X POST http://localhost:8086/connectors \
       "database.password": "debezium",
       "database.server.id": "1",
       "topic.prefix": "lp",
-      "table.include.list": "order_db.outbox,product_db.outbox",
+      "table.include.list": "order_db.outbox,product_db.outbox,payment_db.outbox",
       "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
       "schema.history.internal.kafka.topic": "schema-changes.lp-mall",
       "value.converter": "org.apache.kafka.connect.storage.StringConverter",

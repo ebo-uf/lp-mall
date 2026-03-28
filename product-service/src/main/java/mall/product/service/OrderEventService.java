@@ -20,19 +20,23 @@ public class OrderEventService {
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
 
-    // 재고 차감 + SUCCESS outbox — 하나의 트랜잭션
-    // reduceStock 실패 시 outbox도 함께 롤백 → 예외 전파
     @Transactional
     public void processSuccess(OrderCreatedEvent event) {
+        if (outboxRepository.existsByAggregateId(event.getOrderId())) {
+            log.warn("중복 이벤트 무시 (processSuccess): orderId={}", event.getOrderId());
+            return;
+        }
         productService.reduceStock(event.getProductId(), event.getQuantity());
         saveOutbox(event.getOrderId(), "SUCCESS", event.getProductId());
         log.info("재고 차감 성공 - orderId: {}", event.getOrderId());
     }
 
-    // FAILURE outbox — 독립 트랜잭션
-    // processSuccess 롤백 상태에서 호출되므로 별도 트랜잭션으로 FAILURE 이벤트 보장
     @Transactional
     public void processFailure(OrderCreatedEvent event) {
+        if (outboxRepository.existsByAggregateId(event.getOrderId())) {
+            log.warn("중복 이벤트 무시 (processFailure): orderId={}", event.getOrderId());
+            return;
+        }
         saveOutbox(event.getOrderId(), "FAILURE", event.getProductId());
         log.info("재고 차감 실패 처리 - orderId: {}", event.getOrderId());
     }
