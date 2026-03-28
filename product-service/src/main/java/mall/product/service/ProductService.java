@@ -40,7 +40,7 @@ public class ProductService {
                         .year(product.getYear())
                         .condition(product.getCondition())
                         .price(product.getPrice())
-                        .stock(product.getStock())
+                        .stock(product.getIsLimited() ? getRedisStock(product.getId()) : product.getStock())
                         .sellerId(product.getSellerId())
                         .saleStartAt(product.getSaleStartAt())
                         .isLimited(product.getIsLimited())
@@ -49,6 +49,11 @@ public class ProductService {
                         .updatedAt(product.getUpdatedAt())
                         .build())
                 .toList();
+    }
+
+    private int getRedisStock(Long productId) {
+        long stock = redissonClient.getAtomicLong("stock:product:" + productId).get();
+        return (int) Math.max(stock, 0);
     }
 
     public ProductFindResponseDto findById(Long productId){

@@ -28,10 +28,7 @@ spring:
       group-id: product-service-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-      properties:
-        spring.json.trusted.packages: "*"
-        spring.json.value.default.type: mall.common.dto.OrderCreatedEvent
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
 file:
   dir: uploads/products

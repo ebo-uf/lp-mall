@@ -42,6 +42,9 @@ public class Order {
     @Column(name = "totalPrice", nullable = false)
     private Long totalPrice;
 
+    @Column(name = "is_limited", nullable = false)
+    private boolean isLimited;
+
     @CreatedDate
     @Column(name = "created_at")
     private LocalDateTime createdAt;
