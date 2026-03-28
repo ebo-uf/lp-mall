@@ -89,6 +89,12 @@ jobs:
               docker compose -f docker-compose.prod.yml up -d
             docker image prune -f
 
+            echo "Waiting for MySQL..."
+            until docker exec mysql-user mysqladmin ping -h localhost -ppassword --silent 2>/dev/null; do
+              sleep 2
+            done
+            docker exec -i mysql-user mysql -uroot -ppassword < /app/lp-mall/docker/mysql/init.sql
+
             echo "Waiting for kafka-connect..."
             for i in $(seq 1 30); do
               if curl -sf http://localhost:8086/connectors > /dev/null 2>&1; then
