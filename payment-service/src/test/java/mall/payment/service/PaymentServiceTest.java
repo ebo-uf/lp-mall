@@ -133,6 +133,19 @@ class PaymentServiceTest {
     }
 
     @Test
+    @DisplayName("refund skipped - already REFUNDED (idempotent)")
+    void refundPayment_alreadyRefunded_skipped() {
+        Payment payment = Payment.builder()
+                .orderId("ord-1").paymentKey("pay-key-1")
+                .amount(50000L).status(PaymentStatus.REFUNDED).build();
+        given(paymentRepository.findByOrderId("ord-1")).willReturn(Optional.of(payment));
+
+        paymentService.refundPayment("ord-1");
+
+        then(restTemplate).should(never()).postForEntity(anyString(), any(), any());
+    }
+
+    @Test
     @DisplayName("환불 실패 - Toss cancel API 오류 시 Payment 상태 유지")
     void refundPayment_Toss실패() {
         Payment payment = Payment.builder()
