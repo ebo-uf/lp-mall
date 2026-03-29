@@ -9,6 +9,7 @@ import mall.common.security.JwtTokenParser;
 import mall.order.dto.OrderCreateRequestDto;
 import mall.order.entity.Order;
 import mall.order.entity.OutboxEvent;
+import mall.order.event.RedisStockRollbackEvent;
 import mall.order.repository.OrderRepository;
 import mall.order.repository.OutboxRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.redisson.api.RAtomicLong;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -40,6 +42,7 @@ class OrderServiceTest {
     @Mock ProductFeignClient productFeignClient;
     @Mock JwtTokenParser jwtTokenParser;
     @Mock RedissonClient redissonClient;
+    @Mock ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     OrderService orderService;
@@ -278,22 +281,25 @@ class OrderServiceTest {
     // ──────────────────────────────────────────────
 
     @Test
-    @DisplayName("cancel order (Saga compensation) - CANCELED + Redis rollback + payment-refund outbox")
+    @DisplayName("cancel order (Saga compensation) - CANCELED + RedisStockRollbackEvent published + payment-refund outbox")
     void cancelOrder_sagaCompensation_limited() {
         Order order = Order.builder().orderId("ord-1").status(OrderStatus.PAYMENT_COMPLETED)
                 .productId(1L).isLimited(true).build();
         given(orderRepository.findByOrderId("ord-1")).willReturn(Optional.of(order));
-        doReturn(rAtomicLong).when(redissonClient).getAtomicLong("stock:product:1");
 
         orderService.cancelOrder("ord-1");
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);
-        then(rAtomicLong).should().incrementAndGet(); // Redis stock restored
-        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
-        then(outboxRepository).should().save(captor.capture());
-        assertThat(captor.getValue().getAggregateType()).isEqualTo("payment-refund");
-        assertThat(captor.getValue().getType()).isEqualTo("PaymentRefundEvent");
-        assertThat(captor.getValue().getPayload()).contains("ord-1");
+        then(redissonClient).shouldHaveNoInteractions();
+        ArgumentCaptor<RedisStockRollbackEvent> eventCaptor = ArgumentCaptor.forClass(RedisStockRollbackEvent.class);
+        then(eventPublisher).should().publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().productId()).isEqualTo(1L);
+
+        ArgumentCaptor<OutboxEvent> outboxCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        then(outboxRepository).should().save(outboxCaptor.capture());
+        assertThat(outboxCaptor.getValue().getAggregateType()).isEqualTo("payment-refund");
+        assertThat(outboxCaptor.getValue().getType()).isEqualTo("PaymentRefundEvent");
+        assertThat(outboxCaptor.getValue().getPayload()).contains("ord-1");
     }
 
     @Test

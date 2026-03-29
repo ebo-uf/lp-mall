@@ -14,11 +14,13 @@ import mall.order.dto.OrderCreateRequestDto;
 import mall.order.dto.OrderHistoryResponseDto;
 import mall.order.entity.Order;
 import mall.order.entity.OutboxEvent;
+import mall.order.event.RedisStockRollbackEvent;
 import mall.order.repository.OrderRepository;
 import mall.order.repository.OutboxRepository;
 import org.redisson.api.RAtomicLong;
 import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class OrderService {
     private final JwtTokenParser jwtTokenParser;
     private final RedissonClient redissonClient;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public String reserveOrder(String accessToken, OrderCreateRequestDto request) {
         boolean limited = Boolean.TRUE.equals(request.getIsLimited());
@@ -129,7 +132,6 @@ public class OrderService {
 
         if (order.getStatus() == OrderStatus.PAYMENT_COMPLETED) {
             order.setStatus(OrderStatus.CANCELED);
-            if (order.isLimited()) rollbackRedisStock(order.getProductId());
 
             try {
                 String payload = objectMapper.writeValueAsString(new PaymentRefundEvent(orderId));
@@ -142,6 +144,8 @@ public class OrderService {
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Outbox 직렬화 실패", e);
             }
+
+            if (order.isLimited()) eventPublisher.publishEvent(new RedisStockRollbackEvent(order.getProductId()));
 
             log.info("주문 취소 + 환불 이벤트 발행: orderId={}", orderId);
         }
