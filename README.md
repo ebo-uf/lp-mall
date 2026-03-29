@@ -10,7 +10,7 @@
 # 1. 프로젝트 개요
 
 ### 개발 기간
-2026.01.29 - 2026.02.xx
+2026.01.29 - 2026.03.29
 
 ### 프로젝트 소개
 MSA 구조를 경험해보고자 진행한 프로젝트입니다.
@@ -32,6 +32,7 @@ api와 같은 추가적인 내용은 노션에 기록되어 있습니다.
 - Redis
 ### Message Broker
 - Kafka
+- Debezium
 
 # 3. 시스템 아키텍처
 ![아키텍처](readme_image/arch.png)
@@ -54,5 +55,9 @@ JWT를 이용하여 구현
 ![5](readme_image/4.png)
 ![6](readme_image/5.png)
 ## 5. lp 구매
+토스페이의 api와 연동하여 구매 기능 구현
+![7](readme_image/7.png)
 구매를 한 경우 판매 완료 처리하여 구매를 못하게 함
-![7](readme_image/6.png)
+![8](readme_image/6.png)
+## 6. 주문 내역
+![9](readme_image/8.png)
